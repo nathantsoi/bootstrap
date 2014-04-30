@@ -41,13 +41,17 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
       //SUPPORTED ATTRIBUTES (OPTIONS)
 
       //minimal no of characters that needs to be entered before typeahead kicks-in
-      var minSearch = originalScope.$eval(attrs.typeaheadMinLength) || 1;
+      var minSearch = parseInt(originalScope.$eval(attrs.typeaheadMinLength));
+      if (isNaN(minSearch)) { minSearch = 1; }
 
       //minimal wait time after last character typed before typehead kicks-in
       var waitTime = originalScope.$eval(attrs.typeaheadWaitMs) || 0;
 
       //should it restrict model values to the ones selected from the popup only?
       var isEditable = originalScope.$eval(attrs.typeaheadEditable) !== false;
+
+      //show the typeahead when someone focuses the input
+      var isShowOnFocus = $parse(attrs.typeaheadShowOnFocus)() === true;
 
       //binding to a variable that indicates if matches are being retrieved asynchronously
       var isLoadingSetter = $parse(attrs.typeaheadLoading).assign || angular.noop;
@@ -127,7 +131,7 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
 
           //it might happen that several async queries were in progress if a user were typing fast
           //but we are interested only in responses that correspond to the current view value
-          var onCurrentRequest = (inputValue === modelCtrl.$viewValue);
+          var onCurrentRequest = (inputValue === (modelCtrl.$viewValue||''));
           if (onCurrentRequest && hasFocus) {
             if (matches.length > 0) {
 
@@ -173,13 +177,11 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
       //Declare the timeout promise var outside the function scope so that stacked calls can be cancelled later 
       var timeoutPromise;
 
-      //plug into $parsers pipeline to open a typeahead on view changes initiated from DOM
-      //$parsers kick-in on all the changes coming from the view as well as manually triggered by $setViewValue
-      modelCtrl.$parsers.unshift(function (inputValue) {
+      var runQuery = function (inputValue) {
 
         hasFocus = true;
 
-        if (inputValue && inputValue.length >= minSearch) {
+        if (!angular.isUndefined(inputValue) && inputValue !== null && inputValue.length >= minSearch) {
           if (waitTime > 0) {
             if (timeoutPromise) {
               $timeout.cancel(timeoutPromise);//cancel previous timeout
@@ -207,7 +209,11 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
             return undefined;
           }
         }
-      });
+      };
+
+      //plug into $parsers pipeline to open a typeahead on view changes initiated from DOM
+      //$parsers kick-in on all the changes coming from the view as well as manually triggered by $setViewValue
+      modelCtrl.$parsers.unshift(runQuery);
 
       modelCtrl.$formatters.push(function (modelValue) {
 
@@ -284,6 +290,11 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
           resetMatches();
           scope.$digest();
         }
+      });
+
+      element.bind('focus', function (evt) {
+        if (!isShowOnFocus) { return; }
+        runQuery('');
       });
 
       element.bind('blur', function (evt) {

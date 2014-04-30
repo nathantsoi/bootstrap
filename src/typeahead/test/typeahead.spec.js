@@ -156,6 +156,20 @@ describe('typeahead tests', function () {
       expect(element).toBeClosed();
     });
 
+    it('should open typeahead when focused if typeaheadShowOnFocus is true', function () {
+      var element = prepareInputEl('<div><input ng-model="result" typeahead="item for item in source | filter:$viewValue" typeahead-min-length="0" typeahead-show-on-focus="true"></div>');
+      findInput(element).focus();
+      $scope.$digest();
+      expect(element).toBeOpenWithActive(3, 0);
+    });
+
+    it('should default typeaheadShowOnFocus false ', function () {
+      var element = prepareInputEl('<div><input ng-model="result" typeahead="item for item in source | filter:$viewValue" typeahead-min-length="0"></div>');
+      findInput(element).focus();
+      $scope.$digest();
+      expect(element).toBeClosed();
+    });
+
     it('should support custom model selecting function', function () {
       $scope.updaterFn = function (selectedItem) {
         return 'prefix' + selectedItem;
